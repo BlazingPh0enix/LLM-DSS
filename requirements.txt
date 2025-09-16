@@ -1,0 +1,7 @@
+nltk
+spacy
+sentence-transformers
+chromadb
+PyMuPDF
+pymupdf4llm
+streamlit
