@@ -19,9 +19,13 @@ for directory in directories:
 # Download necessary NLTK and spaCy models
 def download_nltk_spacy_models():
     try:
+        print("Installing necessary NLTK models")
         nltk.download('punkt', quiet=True)
         nltk.download('stopwords', quiet=True)
+        print("NLTK models installed successfully")
+        print("Installing necessary spaCy models")
         subprocess.run([sys.executable, '-m', 'spacy', 'download', 'en_core_web_sm'], check=True)
+        print("spaCy models installed successfully")
     except Exception as e:
         print(f"An error occurred while downloading nltk and spaCy models: {e}")
 
@@ -40,11 +44,13 @@ def download_corpus():
 
     # Download each textbook and save it to the corpus directory
     for title, url in textbook_urls.items():
+        print(f"Downloading {title}...")
         response = urllib.request.urlopen(url)
         pdf_data = response.read()
         pdf_path = corpus_dir / f"{title}.pdf"
         with open(pdf_path, "wb") as f:
             f.write(pdf_data)
+        print(f"Saved {title} to {pdf_path}")
 
 if __name__ == "__main__":
     download_nltk_spacy_models()
