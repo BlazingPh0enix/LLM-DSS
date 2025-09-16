@@ -18,7 +18,4 @@ env/
 *.pdf
 
 # Ignore data directories
-physics_corpus/
-physics_vectordb/
-models/
-processed_text/
+data/
