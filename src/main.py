@@ -6,9 +6,13 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 from rouge_score import rouge_scorer
 from sklearn.metrics.pairwise import cosine_similarity
-from data_preprocess import VectorStore
+from scripts.data_preprocess import VectorStore
+from pathlib import Path
+from evaluation import Evaluator
 
-load_dotenv()
+project_root = Path(__file__).resolve().parent.parent
+
+load_dotenv(project_root / ".env")
 openai = OpenAI()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -47,7 +51,7 @@ class SearchSystem:
     def __init__(self):
         self.summarizer = ContentSummarizer()
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.collection = chromadb.PersistentClient(path="./physics_vectordb").get_collection(name="physics_corpus")
+        self.collection = chromadb.PersistentClient(path="./data/physics_vectordb").get_collection(name="physics_corpus")
         
     def search_and_summarize(self, query: str, n_results: int = 5, summary_length: str = 'medium') -> Dict:
         search_results = VectorStore().search(query, n_results)
@@ -62,14 +66,22 @@ class SearchSystem:
 
 class SystemEvaluator:
     def __init__(self):
-        self.search_system = SearchSystem()
-        self.scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+        self.evaluator = Evaluator(self)
 
-    def evaluate_search_accuracy(self, test_queries: List[Dict]) -> Dict:
-        results = []
+    def run_evaluation(self):
+
+        print("Starting evaluation...")
         
-        for test_case in test_queries:
-            
-            search_results = VectorStore().search(test_case['query'])
+        test_set = self.evaluator.create_test_set()
 
-        return {}
+        if not test_set:
+            print("No test set available for evaluation.")
+            return
+        
+        retrieval_results = self.evaluator.evaluate_retrieval(test_set)
+
+        summarization_results = self.evaluator.evaluate_summaries(test_set)
+
+        print("Evaluation completed.")
+        print("Retrieval Accuracy:", retrieval_results)
+        print("Summarization Quality:", summarization_results)
