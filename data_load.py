@@ -1,4 +1,3 @@
-import os
 import nltk
 import sys
 import subprocess
