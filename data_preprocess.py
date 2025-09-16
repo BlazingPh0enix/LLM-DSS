@@ -1,16 +1,11 @@
-import pandas as pd
-from typing import List, Dict, Tuple, Any
-import numpy as np
-from datetime import datetime
+# NOTE: Run this file once to preprocess data and store it in ChromaDB.
+
+from typing import List, Dict
 import pymupdf
 import pymupdf4llm
-import os
-import io
 import spacy
 from sentence_transformers import SentenceTransformer
 import chromadb
-import openai
-from transformers import pipeline, AutoTokenizer
 import re
 from pathlib import Path
 
