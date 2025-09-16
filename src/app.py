@@ -57,17 +57,7 @@ st.markdown("""
 @st.cache_resource
 def load_search_system():
     """Load and cache the search system"""
-    return SearchSystem(
-        data_dir="./physics_textbooks"
-    )
-
-@st.cache_data
-def setup_system_cache():
-    """Setup system with caching"""
-    system = load_search_system()
-    if not system.documents_processed:
-        system.setup_system()
-    return True
+    return SearchSystem()
 
 def main():
     # Header
@@ -82,16 +72,6 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("⚙️ Settings")
-        
-        # System setup
-        st.subheader("System Status")
-        if st.button("🚀 Initialize System"):
-            with st.spinner("Processing physics textbooks..."):
-                try:
-                    setup_system_cache()
-                    st.success("✅ System initialized successfully!")
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
         
         # Search parameters
         st.subheader("Search Parameters")
