@@ -21,3 +21,4 @@ env/
 physics_corpus/
 physics_vectordb/
 models/
+processed_text/
