@@ -1,3 +1,5 @@
+# NOTE: This script is intended to be run once to set up necessary directories and download required models and datasets.
+
 import nltk
 import sys
 import subprocess
@@ -15,12 +17,13 @@ for directory in directories:
     Path(directory).mkdir(parents=True, exist_ok=True)
 
 # Download necessary NLTK and spaCy models
-try:
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
-    subprocess.run([sys.executable, '-m', 'spacy', 'download', 'en_core_web_sm'], check=True)
-except Exception as e:
-    print(f"An error occurred while downloading nltk and spaCy models: {e}")
+def download_nltk_spacy_models():
+    try:
+        nltk.download('punkt', quiet=True)
+        nltk.download('stopwords', quiet=True)
+        subprocess.run([sys.executable, '-m', 'spacy', 'download', 'en_core_web_sm'], check=True)
+    except Exception as e:
+        print(f"An error occurred while downloading nltk and spaCy models: {e}")
 
 # Download the physics corpus
 def download_corpus():
@@ -42,3 +45,7 @@ def download_corpus():
         pdf_path = corpus_dir / f"{title}.pdf"
         with open(pdf_path, "wb") as f:
             f.write(pdf_data)
+
+if __name__ == "__main__":
+    download_nltk_spacy_models()
+    download_corpus()
