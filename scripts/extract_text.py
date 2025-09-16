@@ -3,6 +3,9 @@ import pymupdf4llm
 from pathlib import Path
 import time
 from multiprocessing import Pool, cpu_count
+import os
+
+os.chdir(Path(__file__).parent.parent)  # Change to project root directory
 
 def process_single_pdf(pdf_file: Path, output_dir: Path):
     output_txt_path = output_dir / f"{pdf_file.stem}.txt"
@@ -44,13 +47,13 @@ def process_single_pdf(pdf_file: Path, output_dir: Path):
     print(f"-> Finished and saved to '{output_txt_path}'. Time taken: {end_time - start_time:.2f} seconds.\n")
 
 def extract_and_save_text():
-    corpus_dir = Path("./physics_corpus")
-    output_dir = Path("./processed_text")
+    corpus_dir = Path("./data/physics_corpus")
+    output_dir = Path("./data/processed_text")
     output_dir.mkdir(exist_ok=True)
 
     pdf_files = list(corpus_dir.glob("*.pdf"))
     if not pdf_files:
-        raise FileNotFoundError("No PDF files found in ./physics_corpus. Run data_load.py first.")
+        raise FileNotFoundError("No PDF files found in ./data/physics_corpus. Run data_load.py first.")
 
     num_processes = max(1, cpu_count() // 2)
     print(f"Starting parallel processing of {len(pdf_files)} PDFs with {num_processes} processes...")

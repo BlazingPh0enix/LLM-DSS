@@ -4,6 +4,9 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 import re
 from pathlib import Path
+import os
+
+os.chdir(Path(__file__).parent.parent)  # Change to project root directory
 
 class DataPreprocessor:
     def __init__(self):
@@ -34,7 +37,7 @@ class DataPreprocessor:
         return all_chunks
 
 class VectorStore:
-    def __init__(self, db_path: str = "./physics_vectordb"):
+    def __init__(self, db_path: str = "./data/physics_vectordb"):
         self.db_path = db_path
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.client = chromadb.PersistentClient(path=db_path)
@@ -78,11 +81,11 @@ class VectorStore:
         return formatted_results
 
 if __name__ == "__main__":
-    text_dir = Path("./processed_text")
+    text_dir = Path("./data/processed_text")
     txt_files = list(text_dir.glob("*.txt"))
 
     if not txt_files:
-        raise FileNotFoundError("No processed text files found. Run '1_extract_text.py' first.")
+        raise FileNotFoundError("No processed text files found. Run 'extract_text.py' first.")
 
     preprocessor = DataPreprocessor()
     vector_store = VectorStore()

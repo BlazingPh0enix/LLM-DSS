@@ -5,16 +5,24 @@ import sys
 import subprocess
 from pathlib import Path
 import urllib.request
+import os
+
+os.chdir(Path(__file__).parent.parent)  # Change to project root directory
+
+# Data directory
+data_dir = Path("./data")
+data_dir.mkdir(exist_ok=True)
 
 # Ensure necessary directories exist
 directories = [
     "physics_corpus",
-    'models',
-    "physics_vectordb"
+    "physics_vectordb",
+    'processed_text',
 ]
 
 for directory in directories:
-    Path(directory).mkdir(parents=True, exist_ok=True)
+    dir_path = Path(data_dir / directory)
+    dir_path.mkdir(exist_ok=True)
 
 # Download necessary NLTK and spaCy models
 def download_nltk_spacy_models():
@@ -32,7 +40,7 @@ def download_nltk_spacy_models():
 # Download the physics corpus
 def download_corpus():
     # Define the directory to save the corpus
-    corpus_dir = Path("physics_corpus")
+    corpus_dir = Path("data/physics_corpus")
 
     # URLs of the textbooks to download
     textbook_urls = {
