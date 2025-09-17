@@ -61,24 +61,6 @@ class VectorStore:
             )
         print("-> Documents added to vector store.")
 
-    def search(self, query: str, n_results: int = 5) -> List[Dict]:
-        query_embedding = self.embedding_model.encode([query]).tolist()
-
-        results = self.collection.query(
-            query_embeddings=query_embedding,
-            n_results=n_results
-        )
-
-        formatted_results = []
-        for i in range(len(results['documents'][0])): # type: ignore
-            formatted_results.append({
-                'text': results['documents'][0][i], # type: ignore
-                'metadata': results['metadatas'][0][i], # type: ignore
-                'distance': results['distances'][0][i] if results['distances'] else None
-            })
-        
-        return formatted_results
-
 if __name__ == "__main__":
     text_dir = Path("./data/processed_text")
     txt_files = list(text_dir.glob("*.txt"))

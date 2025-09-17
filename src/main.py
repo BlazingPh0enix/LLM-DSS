@@ -5,11 +5,8 @@ from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 import chromadb
 from rouge_score import rouge_scorer
-from sklearn.metrics.pairwise import cosine_similarity
-from scripts.data_preprocess import VectorStore
 from pathlib import Path
 import numpy as np
-from scripts.data_preprocess import VectorStore
 
 project_root = Path(__file__).resolve().parent.parent
 
@@ -70,20 +67,45 @@ class ContentSummarizer:
             return "Error: Unable to generate summary at this time."
 
 class SearchSystem:
-    def __init__(self):
-        self.summarizer = ContentSummarizer()
+    def __init__(self, db_path: str = str(project_root / "data/vectordb")):
+        self.vector_store = chromadb.PersistentClient(path=db_path)
+        self.collection = self.vector_store.get_or_create_collection(name="physics_corpus")
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.collection = chromadb.PersistentClient(path="./data/physics_vectordb").get_collection(name="physics_corpus")
-        
-    def search_and_summarize(self, query: str, n_results: int = 5, summary_length: str = 'medium') -> Dict:
-        search_results = VectorStore().search(query, n_results)
+        self.summarizer = ContentSummarizer()
 
-        summary = self.summarizer.summarize_document(search_results, query, summary_length)
+    def search(self, query: str, top_n: int = 5) -> List[Dict]:
+        query_embedding = self.embedding_model.encode([query]).tolist()
+        results = self.collection.query(
+            query_embeddings=query_embedding,
+            n_results=top_n,
+            include=["documents", "metadatas"]
+        )
+        
+        formatted_results = []
+        if results and results['documents']:
+            for i, doc_text in enumerate(results['documents'][0]):
+                formatted_results.append({
+                    "text": doc_text,
+                    "source": results['metadatas'][0][i].get('source_file', 'Unknown') #type: ignore
+                })
+        return formatted_results
+
+    def search_and_summarize(self, query: str, summary_length: str = 'medium') -> Dict:
+        documents = []
+        summary = "Error: Unable to generate summary at this time."
+        try:
+            documents = self.search(query)
+            if not documents:
+                summary = "Could not find any relevant documents for the query."
+            else:
+                summary = self.summarizer.summarize_document(documents, query, summary_length)
+        except Exception as e:
+            print(f"Error during summarization: {e}")
+        
         return {
-            "query": query,
-            "summary": summary,
-            'source_documents': search_results,
-            'n_sources': len(search_results)
+            'query': query,
+            'summary': summary,
+            'source_documents': documents
         }
 
 class Evaluator:
@@ -95,7 +117,7 @@ class Evaluator:
         results = []
         
         for test_case in test_queries:
-            search_results = VectorStore().search(test_case["query"])
+            search_results = SearchSystem().search(test_case['query'])
             
             # Simple relevance check based on expected topics
             relevance_scores = []
