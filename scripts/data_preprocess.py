@@ -42,7 +42,6 @@ class VectorStore:
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.client = chromadb.PersistentClient(path=db_path)
         self.collection = self.client.get_or_create_collection(name="physics_corpus")
-        print("Vector store initialized.")
 
     def add_documents(self, chunks: List[Dict], metadatas: List[Dict]):
         if not chunks: return
