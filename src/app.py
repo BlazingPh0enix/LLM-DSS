@@ -177,17 +177,6 @@ st.markdown("""
         box-shadow: var(--shadow);
         color: var(--text-primary) !important;
     }
-
-    /* Source document styling - Adaptive */
-    .source-document {
-        background-color: var(--card-background) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        box-shadow: var(--shadow);
-        color: var(--text-primary) !important;
-    }
     
     /* Expander styling - Adaptive */
     .streamlit-expanderHeader {
@@ -326,10 +315,11 @@ if submit_button and user_query:
     with st.expander("Referenced Source Documents"):
         if result.get('source_documents'):
             for i, doc in enumerate(result['source_documents']):
-                st.markdown(f'<div class="source-document">', unsafe_allow_html=True)
-                st.markdown(f"**Reference {i+1}:** *{doc.get('source', 'Unknown Source')}*")
-                st.write(f"{doc.get('text', 'Content not available.')}")
-                st.markdown('</div>', unsafe_allow_html=True)
+                source = str(doc.get('source', 'Unknown Source'))
+                # Remove file extension from source name
+                if '.' in source:
+                    source = source.rsplit('.', 1)[0]
+                st.markdown(f"**Reference {i+1}:** *{source}*")
         else:
             st.warning("No relevant source documents found for this query.")
             
