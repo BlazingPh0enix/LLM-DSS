@@ -7,6 +7,24 @@ import chromadb
 from rouge_score import rouge_scorer
 from pathlib import Path
 import numpy as np
+import time
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def log_info(message):
+    """Print log message to console for visibility in Streamlit"""
+    print(f"[INFO] {message}")
+
+def log_warning(message):
+    """Print warning message to console for visibility in Streamlit"""
+    print(f"[WARNING] {message}")
+
+def log_error(message):
+    """Print error message to console for visibility in Streamlit"""
+    print(f"[ERROR] {message}")
 
 project_root = Path(__file__).resolve().parent.parent
 
@@ -19,27 +37,36 @@ if not OPENAI_API_KEY:
 
 class ContentSummarizer:
     def __init__(self):
+        log_info("🔧 Initializing ContentSummarizer...")
         self.api_key = OPENAI_API_KEY
         self.length_specifications = {
             'short': '100 words',
             'medium': '150-200 words',
             'long': '300-500 words'
         }
+        log_info(f"✅ ContentSummarizer initialized with length options: {list(self.length_specifications.keys())}")
 
     def summarize_document(self, documents: List[Dict], query: str, summary_length: str = 'medium') -> str:
+        log_info(f"📝 Starting summarization process...")
+        log_info(f"   Query: '{query}'")
+        log_info(f"   Summary length: {summary_length} ({self.length_specifications.get(summary_length, 'unknown')})")
+        log_info(f"   Number of documents to process: {len(documents)}")
         
         combined_text = "\n\n".join([doc['text'] for doc in documents])
+        total_chars = len(combined_text)
+        log_info(f"   Combined text length: {total_chars} characters ({total_chars//100} hundred chars)")
 
         try:
-            # format the system prompt using keyword args that match the placeholders
-            system_prompt = f"""You are a highly intelligent AI assistant specializing in physics. Your primary task is to synthesize information from a given context to provide a clear and concise answer to a user's query.
+            log_info("🤖 Preparing OpenAI API request...")
+            system_prompt = f"""You are a highly intelligent AI assistant specializing in physics. Your primary task is to synthesize information from a given context to provide a clear and well-structured answer to a user's query.
 
             Your Instructions:
             1. You will be provided with a user's query and a block of text labeled "CONTEXT".
-            2. You must answer the user's query based ONLY on the information available in the CONTEXT. Do not use any prior knowledge or external information.
-            3. Synthesize the information from the CONTEXT into a single, coherent paragraph. Do not use bullet points or lists.
-            4. The final answer must strictly adhere to the requested summary length.
+            2. You must answer the user's query based ONLY on the information available in the CONTEXT. Do not use any prior knowledge or external information unless the CONTEXT has some missing data points such as missing equations or symbols. Apart from these cases DO NOT USE PRIOR KNOWLEDGE.
+            3. Structure your response with clear formatting.
+            4. The total response must adhere to the requested summary length: {self.length_specifications[summary_length]}
             5. If the CONTEXT does not contain enough information to answer the query, you must respond with the exact phrase: "I could not find a definitive answer in the provided documents."
+            6. If the requested summary length is medium or long, make use of Bullet points where appropriate to enhance clarity.
 
             ---
 
@@ -50,6 +77,9 @@ class ContentSummarizer:
 
             ---"""
 
+            log_info("🔄 Sending request to OpenAI API...")
+            start_time = time.time()
+            
             response = openai.chat.completions.create(
                 model="gpt-5-nano-2025-08-07",
                 messages=[
@@ -57,49 +87,132 @@ class ContentSummarizer:
                 {"role": "user", "content": query}
                 ]
             )
+            
+            api_time = time.time() - start_time
+            log_info(f"✅ OpenAI API response received in {api_time:.2f} seconds")
+            
             summary = str(response.choices[0].message.content).strip()
+            word_count = len(summary.split())
+            log_info(f"📄 Generated summary: {word_count} words")
+            log_info(f"   Preview: {summary[:100]}...")
+            
             return summary
         except KeyError as ke:
-            print(f"Prompt formatting error: missing key {ke}")
+            error_msg = f"Prompt formatting error: missing key {ke}"
+            log_error(f"❌ {error_msg}")
             return "Error: prompt formatting failed."
         except Exception as e:
-            print(f"Error during summarization: {e}")
+            error_msg = f"Error during summarization: {e}"
+            log_error(f"❌ {error_msg}")
             return "Error: Unable to generate summary at this time."
 
 class SearchSystem:
-    def __init__(self, db_path: str = str(project_root / "data/vectordb")):
-        self.vector_store = chromadb.PersistentClient(path=db_path)
-        self.collection = self.vector_store.get_or_create_collection(name="physics_corpus")
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.summarizer = ContentSummarizer()
+    def __init__(self, db_path: str = str(project_root / "data/physics_vectordb")):
+        log_info("🚀 Initializing SearchSystem...")
+        log_info(f"   Database path: {db_path}")
+        
+        try:
+            self.vector_store = chromadb.PersistentClient(path=db_path)
+            self.collection = self.vector_store.get_or_create_collection(name="physics_corpus")
+            log_info("✅ Vector database connection established")
+            
+            # Check database content
+            doc_count = self.collection.count()
+            log_info(f"   Database contains: {doc_count} documents")
+            
+            if doc_count == 0:
+                log_warning("⚠️  WARNING: Vector database is empty!")
+            
+            log_info("🔧 Loading embedding model...")
+            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            log_info("✅ Embedding model loaded successfully")
+            
+            self.summarizer = ContentSummarizer()
+            log_info("✅ SearchSystem initialization complete")
+            
+        except Exception as e:
+            log_error(f"❌ Error initializing SearchSystem: {e}")
+            raise
 
     def search(self, query: str, top_n: int = 5) -> List[Dict]:
-        query_embedding = self.embedding_model.encode([query]).tolist()
-        results = self.collection.query(
-            query_embeddings=query_embedding,
-            n_results=top_n,
-            include=["documents", "metadatas"]
-        )
+        log_info(f"🔍 Starting document search...")
+        log_info(f"   Query: '{query}'")
+        log_info(f"   Requested results: {top_n}")
         
-        formatted_results = []
-        if results and results['documents']:
-            for i, doc_text in enumerate(results['documents'][0]):
-                formatted_results.append({
-                    "text": doc_text,
-                    "source": results['metadatas'][0][i].get('source_file', 'Unknown') #type: ignore
-                })
-        return formatted_results
+        try:
+            # Generate query embedding
+            log_info("🔄 Generating query embedding...")
+            start_time = time.time()
+            query_embedding = self.embedding_model.encode([query]).tolist()
+            embedding_time = time.time() - start_time
+            log_info(f"✅ Query embedding generated in {embedding_time:.3f} seconds")
+            
+            # Search vector database
+            log_info("🔄 Searching vector database...")
+            search_start = time.time()
+            results = self.collection.query(
+                query_embeddings=query_embedding,
+                n_results=top_n,
+                include=["documents", "metadatas"]
+            )
+            search_time = time.time() - search_start
+            log_info(f"✅ Database search completed in {search_time:.3f} seconds")
+            
+            # Process results
+            formatted_results = []
+            if results and results['documents'] and results['documents'][0]:
+                raw_docs = results['documents'][0]
+                log_info(f"📋 Processing {len(raw_docs)} retrieved documents...")
+                
+                for i, doc_text in enumerate(raw_docs):
+                    source_file = results['metadatas'][0][i].get('source_file', 'Unknown') if results['metadatas'] and results['metadatas'][0] else 'Unknown'  # type: ignore
+                    formatted_results.append({
+                        "text": doc_text,
+                        "source": source_file
+                    })
+                    log_info(f"   Document {i+1}: {len(doc_text)} chars from '{source_file}'")
+                    
+                log_info(f"✅ Successfully formatted {len(formatted_results)} documents")
+            else:
+                log_warning("⚠️  No documents found in search results")
+            
+            return formatted_results
+            
+        except Exception as e:
+            log_error(f"❌ Error during search: {e}")
+            return []
 
     def search_and_summarize(self, query: str, summary_length: str = 'medium') -> Dict:
+        log_info(f"🎯 Starting search and summarization pipeline...")
+        log_info(f"   Query: '{query}'")
+        log_info(f"   Summary length: {summary_length}")
+        
+        overall_start = time.time()
         documents = []
         summary = "Error: Unable to generate summary at this time."
+        
         try:
+            # Step 1: Search for documents
+            log_info("📚 Step 1: Searching for relevant documents...")
             documents = self.search(query)
+            
             if not documents:
+                log_warning("⚠️  No relevant documents found")
                 summary = "Could not find any relevant documents for the query."
             else:
+                log_info(f"✅ Found {len(documents)} relevant documents")
+                
+                # Step 2: Generate summary
+                log_info("📝 Step 2: Generating summary...")
                 summary = self.summarizer.summarize_document(documents, query, summary_length)
+                
+            total_time = time.time() - overall_start
+            log_info(f"🎉 Pipeline completed in {total_time:.2f} seconds")
+            log_info("=" * 60)
+            
         except Exception as e:
+            error_msg = f"Error during search and summarization: {e}"
+            log_error(f"❌ {error_msg}")
             print(f"Error during summarization: {e}")
         
         return {
